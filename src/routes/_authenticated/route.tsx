@@ -21,7 +21,6 @@ import {
 import {
   Hospital,
   LogOut,
-  User,
   Menu,
   Tag,
   FileText,
@@ -83,8 +82,7 @@ const NAV: ItemNav[] = [
   { to: "/biblioteca", rotulo: "Biblioteca de Etiquetas", icone: Library },
   { to: "/documentos/editor", rotulo: "Novos Documentos", icone: FilePlus2 },
   { to: "/documentos", rotulo: "Biblioteca de Documentos", icone: FileText },
-  { to: "/admin/solicitacoes", rotulo: "Solicitações", icone: Inbox, soAdmin: true },
-  { to: "/admin/usuarios", rotulo: "Usuários", icone: Users, soAdmin: true },
+  { to: "/admin/usuarios", rotulo: "Gestão de Usuários", icone: Users, soAdmin: true },
   { to: "/admin/setores", rotulo: "Setores", icone: Building2, soAdmin: true },
   { to: "/admin/auditoria", rotulo: "Trilha de Auditoria", icone: ScrollText, soAdmin: true },
   { to: "/agente-impressao", rotulo: "Agente de Impressão", icone: Cpu, soAdmin: true },
@@ -105,6 +103,8 @@ function LayoutAutenticado() {
   const { data: profile, isLoading } = useProfile();
   const [menuAberto, setMenuAberto] = useState(false);
   const [sidebarColapsada, setSidebarColapsada] = useState(lerPreferenciaSidebar);
+  const navigate = useNavigate();
+  const qc = useQueryClient();
 
   useEffect(() => {
     try {
@@ -132,6 +132,14 @@ function LayoutAutenticado() {
     refetchInterval: 60_000,
   });
 
+  async function sair() {
+    await registrarAuditoria({ acao: "logout" });
+    await qc.cancelQueries();
+    qc.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  }
+
   if (isLoading || !profile) {
     return (
       <div className="min-h-screen grid place-items-center">
@@ -141,17 +149,15 @@ function LayoutAutenticado() {
   }
 
   const itens = NAV.filter((i) => !i.soAdmin || profile.role === "admin");
-  const contadores: Record<string, number> = contagemPendentes
-    ? { "/admin/solicitacoes": contagemPendentes }
-    : {};
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Cabecalho
-        profile={profile}
+        ehAdmin={profile.role === "admin"}
         onAbrirMenu={() => setMenuAberto(true)}
         sidebarColapsada={sidebarColapsada}
         onAlternarSidebar={() => setSidebarColapsada((v) => !v)}
+        contagemSolicitacoes={contagemPendentes ?? 0}
       />
       <div className="flex flex-1">
         <aside
@@ -159,10 +165,11 @@ function LayoutAutenticado() {
             sidebarColapsada ? "w-16" : "w-64"
           }`}
         >
-          <NavItens itens={itens} colapsada={sidebarColapsada} contadores={contadores} />
+          <NavItens itens={itens} colapsada={sidebarColapsada} />
+          <RodapeUsuario profile={profile} colapsada={sidebarColapsada} onSair={sair} />
         </aside>
         <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
-          <SheetContent side="left" className="p-0 w-72 bg-sidebar text-sidebar-foreground">
+          <SheetContent side="left" className="flex h-full w-72 flex-col bg-sidebar p-0 text-sidebar-foreground">
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="p-4 border-b">
               <div className="flex items-center gap-2">
@@ -170,13 +177,16 @@ function LayoutAutenticado() {
                 <span className="font-semibold">Padrão HEMC</span>
               </div>
             </div>
-            <NavItens itens={itens} onClique={() => setMenuAberto(false)} contadores={contadores} />
+            <NavItens itens={itens} onClique={() => setMenuAberto(false)} />
+            <RodapeUsuario profile={profile} onSair={sair} />
           </SheetContent>
         </Sheet>
         <main className="flex-1 min-w-0">
           <Outlet />
         </main>
       </div>
+
+      <RodapeCreditos />
 
       <ModalAceiteLGPD lgpdAceiteEm={profile.lgpd_aceite_em} />
     </div>
@@ -242,12 +252,10 @@ function NavItens({
   itens,
   onClique,
   colapsada,
-  contadores,
 }: {
   itens: ItemNav[];
   onClique?: () => void;
   colapsada?: boolean;
-  contadores?: Record<string, number>;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -271,7 +279,6 @@ function NavItens({
         {itens.map((item) => {
           const Ic = item.icone;
           const ativo = item.to === itemAtivoTo;
-          const contador = contadores?.[item.to] ?? 0;
           const link = (
             <Link
               key={item.to}
@@ -285,24 +292,8 @@ function NavItens({
                   : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               }`}
             >
-              <span className="relative shrink-0">
-                <Ic className="h-4 w-4" />
-                {colapsada && contador > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-warning text-[9px] font-bold text-warning-foreground">
-                    {contador > 9 ? "9+" : contador}
-                  </span>
-                )}
-              </span>
-              {!colapsada && (
-                <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                  <span className="truncate">{item.rotulo}</span>
-                  {contador > 0 && (
-                    <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-warning px-1 text-[10px] font-bold text-warning-foreground">
-                      {contador > 99 ? "99+" : contador}
-                    </span>
-                  )}
-                </span>
-              )}
+              <Ic className="h-4 w-4 shrink-0" />
+              {!colapsada && <span className="truncate">{item.rotulo}</span>}
             </Link>
           );
 
@@ -311,10 +302,7 @@ function NavItens({
           return (
             <Tooltip key={item.to}>
               <TooltipTrigger asChild>{link}</TooltipTrigger>
-              <TooltipContent side="right">
-                {item.rotulo}
-                {contador > 0 ? ` (${contador})` : ""}
-              </TooltipContent>
+              <TooltipContent side="right">{item.rotulo}</TooltipContent>
             </Tooltip>
           );
         })}
@@ -323,28 +311,100 @@ function NavItens({
   );
 }
 
-function Cabecalho({
+function iniciais(nome: string): string {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+// Cartão de usuário fixo no rodapé da sidebar — avatar com iniciais, RE e
+// setor sempre visíveis, nome completo e "Sair" dentro do menu (clique).
+// Substitui o dropdown que ficava solto no cabeçalho: menos poluição ali
+// em cima, e o padrão "conta no rodapé da barra lateral" é o mesmo que
+// Slack, Notion e afins usam.
+function RodapeUsuario({
   profile,
+  colapsada,
+  onSair,
+}: {
+  profile: NonNullable<ReturnType<typeof useProfile>["data"]>;
+  colapsada?: boolean;
+  onSair: () => void;
+}) {
+  return (
+    <div className="mt-auto border-t border-sidebar-border p-3">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`flex w-full items-center gap-2.5 rounded-md p-1.5 text-left transition-colors hover:bg-sidebar-accent ${
+              colapsada ? "justify-center" : ""
+            }`}
+          >
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary/20 text-xs font-semibold text-primary">
+              {iniciais(profile.nome_completo)}
+            </div>
+            {!colapsada && (
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs text-sidebar-foreground/70">
+                  {profile.setor?.sigla ?? "Sem setor"} · RE {profile.re}
+                </div>
+              </div>
+            )}
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" side="top" className="w-56">
+          <DropdownMenuLabel>
+            <div className="font-medium">{profile.nome_completo}</div>
+            <div className="text-xs text-muted-foreground font-normal">
+              {profile.role === "admin" ? "Administrador" : "Colaborador"}
+              {profile.setor ? ` · ${profile.setor.nome}` : ""}
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onSair}>
+            <LogOut className="h-4 w-4 mr-2" /> Sair
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}
+
+// Rodapé fixo na tela — igual o visual da sidebar (sem caixa, sem borda,
+// só o texto flutuando), mas agora "position: fixed" na parte de baixo da
+// janela inteira: fica sempre visível, não importa o quanto a página role,
+// sem precisar rolar até o fim pra ver. pointer-events-none no wrapper +
+// auto só no link, pra não bloquear cliques no resto da tela por baixo.
+function RodapeCreditos() {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-1.5 z-20 flex justify-center">
+      <a
+        href="https://github.com/Barreto0620"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="pointer-events-auto text-[11px] text-muted-foreground/25 transition-colors duration-300 hover:text-primary"
+      >
+        Gabriel Barreto
+      </a>
+    </div>
+  );
+}
+
+function Cabecalho({
   onAbrirMenu,
   sidebarColapsada,
   onAlternarSidebar,
+  contagemSolicitacoes,
+  ehAdmin,
 }: {
-  profile: NonNullable<ReturnType<typeof useProfile>["data"]>;
   onAbrirMenu: () => void;
   sidebarColapsada: boolean;
   onAlternarSidebar: () => void;
+  contagemSolicitacoes: number;
+  ehAdmin: boolean;
 }) {
-  const navigate = useNavigate();
-  const qc = useQueryClient();
-
-  async function sair() {
-    await registrarAuditoria({ acao: "logout" });
-    await qc.cancelQueries();
-    qc.clear();
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  }
-
   return (
     <header className="sticky top-0 z-30 border-b bg-card">
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 h-14">
@@ -373,49 +433,44 @@ function Cabecalho({
               <Hospital className="h-4 w-4" />
             </div>
             <div className="min-w-0 hidden sm:block">
-              <div className="text-xs uppercase tracking-widest text-muted-foreground leading-none">
-                HEMC
-              </div>
               <div className="text-sm font-semibold leading-tight truncate">Padrão HEMC</div>
             </div>
           </Link>
         </div>
         <div />
         <div className="flex items-center gap-1">
+          {ehAdmin && <BotaoSolicitacoes contagem={contagemSolicitacoes} />}
           <AlternadorTema />
-          <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="gap-2 max-w-[240px]">
-              <div className="grid h-7 w-7 place-items-center rounded-full bg-primary/20 text-primary shrink-0">
-                <User className="h-4 w-4" />
-              </div>
-              <div className="text-left min-w-0 hidden sm:block">
-                <div className="text-sm font-medium truncate leading-tight">
-                  {profile.nome_completo}
-                </div>
-                <div className="text-xs text-muted-foreground truncate leading-tight">
-                  {profile.setor?.sigla ?? "Sem setor"} · RE {profile.re}
-                </div>
-              </div>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="font-medium">{profile.nome_completo}</div>
-              <div className="text-xs text-muted-foreground font-normal">
-                {profile.role === "admin" ? "Administrador" : "Colaborador"}
-                {profile.setor ? ` · ${profile.setor.nome}` : ""}
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={sair}>
-              <LogOut className="h-4 w-4 mr-2" /> Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </header>
+  );
+}
+
+// Ícone de "pendências" no cabeçalho — mesma ideia de um sino de
+// notificação: fica sempre visível pro admin, com a bolinha de contagem,
+// em vez de ocupar uma linha inteira na barra lateral só pra isso.
+function BotaoSolicitacoes({ contagem }: { contagem: number }) {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const ativo = pathname === "/admin/solicitacoes" || pathname.startsWith("/admin/solicitacoes/");
+
+  return (
+    <Link to="/admin/solicitacoes" className="relative">
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Solicitações pendentes"
+        title="Solicitações pendentes"
+        className={ativo ? "bg-primary/15 text-primary hover:bg-primary/20 hover:text-primary" : ""}
+      >
+        <Inbox className="h-4 w-4" />
+      </Button>
+      {contagem > 0 && (
+        <span className="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-warning px-1 text-[9px] font-bold text-warning-foreground">
+          {contagem > 99 ? "99+" : contagem}
+        </span>
+      )}
+    </Link>
   );
 }
 

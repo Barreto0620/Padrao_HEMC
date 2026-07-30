@@ -79,6 +79,7 @@ import {
   FileText,
   LayoutGrid,
   Cpu,
+  Tag,
 } from "lucide-react";
 
 const buscarSchema = z.object({
@@ -106,6 +107,51 @@ function novoId() {
   return crypto.randomUUID();
 }
 
+// ============================================================================
+// Rascunho local — guarda o trabalho em andamento no localStorage, pra não
+// perder nada ao trocar de tela e voltar. Só se aplica a "Novo Modelo" (sem
+// id na URL): editar um modelo já salvo sempre usa a versão do banco como
+// fonte da verdade, nunca um rascunho local desatualizado.
+// ============================================================================
+const RASCUNHO_KEY = "hemc_editor_rascunho";
+
+type RascunhoEtiqueta = {
+  largura: number;
+  altura: number;
+  nomeModelo: string;
+  oficial: boolean;
+  elementos: ElementoEtiqueta[];
+  salvoEm: string;
+};
+
+function lerRascunho(): RascunhoEtiqueta | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const bruto = window.localStorage.getItem(RASCUNHO_KEY);
+    if (!bruto) return null;
+    return JSON.parse(bruto) as RascunhoEtiqueta;
+  } catch {
+    return null;
+  }
+}
+
+function salvarRascunho(r: RascunhoEtiqueta) {
+  try {
+    window.localStorage.setItem(RASCUNHO_KEY, JSON.stringify(r));
+  } catch {
+    // localStorage indisponível (modo privado, por exemplo) — o rascunho
+    // simplesmente não persiste, sem impacto no resto do editor.
+  }
+}
+
+function limparRascunho() {
+  try {
+    window.localStorage.removeItem(RASCUNHO_KEY);
+  } catch {
+    // sem impacto funcional
+  }
+}
+
 function Editor() {
   const { id } = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -121,6 +167,8 @@ function Editor() {
   const [imprimirAberto, setImprimirAberto] = useState(false);
   const [templateAtualId, setTemplateAtualId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [rascunhoRestaurado, setRascunhoRestaurado] = useState(false);
+  const restauracaoFeitaRef = useRef(false);
 
   // Carrega template existente
   const { data: templateExistente } = useQuery({
@@ -167,6 +215,55 @@ function Editor() {
       setTemplateAtualId(templateExistente.id);
     }
   }, [templateExistente]);
+
+  // Restaura o rascunho salvo localmente — só faz sentido em "Novo Modelo"
+  // (sem id na URL). Editar um modelo já salvo sempre usa a versão do
+  // banco como fonte da verdade, nunca um rascunho local desatualizado.
+  // Roda uma única vez de verdade, mesmo com o efeito disparando duas vezes
+  // em desenvolvimento (StrictMode) — sem o ref, o aviso "Continuando de
+  // onde você parou" aparecia duplicado.
+  useEffect(() => {
+    if (restauracaoFeitaRef.current) return;
+    restauracaoFeitaRef.current = true;
+
+    if (id) {
+      setRascunhoRestaurado(true);
+      return;
+    }
+    const rascunho = lerRascunho();
+    if (rascunho && (rascunho.elementos.length > 0 || rascunho.nomeModelo.trim())) {
+      setLargura(rascunho.largura);
+      setAltura(rascunho.altura);
+      setNomeModelo(rascunho.nomeModelo);
+      setOficial(rascunho.oficial);
+      setElementos(rascunho.elementos);
+      toast.info("Continuando de onde você parou.");
+    }
+    setRascunhoRestaurado(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Salva o rascunho localmente, com debounce, sempre que algo relevante
+  // muda — é o que permite trocar de tela e voltar sem perder o trabalho.
+  useEffect(() => {
+    if (id) return; // editando um modelo já salvo — não gera rascunho local
+    if (!rascunhoRestaurado) return; // espera a restauração inicial terminar
+    const timer = setTimeout(() => {
+      if (elementos.length === 0 && !nomeModelo.trim()) {
+        limparRascunho();
+        return;
+      }
+      salvarRascunho({
+        largura,
+        altura,
+        nomeModelo,
+        oficial,
+        elementos,
+        salvoEm: new Date().toISOString(),
+      });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [id, rascunhoRestaurado, largura, altura, nomeModelo, oficial, elementos]);
 
   const selecionado = elementos.find((e) => e.id === selecionadoId) ?? null;
 
@@ -333,6 +430,7 @@ function Editor() {
     },
     onSuccess: () => {
       toast.success("Modelo salvo.");
+      limparRascunho();
       qc.invalidateQueries({ queryKey: ["templates"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -362,7 +460,52 @@ function Editor() {
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
-      <PageHeader titulo={templateAtualId ? "Editar Modelo" : "Novo Modelo"} />
+      <PageHeader
+        titulo={templateAtualId ? "Editar Modelo" : "Novo Modelo"}
+        descricao="Monte a etiqueta arrastando elementos no canvas."
+        acoes={
+          <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={carregandoOficiais}>
+                  {carregandoOficiais ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileText className="h-4 w-4 mr-2" />
+                  )}
+                  Padrão
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <DropdownMenuLabel>Modelos oficiais</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {!modelosOficiais || modelosOficiais.length === 0 ? (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">
+                    Nenhum modelo oficial cadastrado ainda.
+                  </div>
+                ) : (
+                  modelosOficiais.map((m) => (
+                    <DropdownMenuItem key={m.id} onClick={() => carregarModeloOficial(m)}>
+                      <FileText className="h-4 w-4 mr-2 shrink-0" />
+                      <span className="truncate">{m.nome}</span>
+                      <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                        {Number(m.largura_mm)}×{Number(m.altura_mm)}mm
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button variant="secondary" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+              {salvar.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Salvar
+            </Button>
+            <Button onClick={() => setImprimirAberto(true)} disabled={elementos.length === 0}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir
+            </Button>
+          </>
+        }
+      />
 
       <Ribbon
         config={{
@@ -372,13 +515,6 @@ function Editor() {
         }}
         onAdicionar={adicionar}
         onAdicionarImagem={adicionarImagem}
-        onSalvar={() => salvar.mutate()}
-        salvando={salvar.isPending}
-        onImprimir={() => setImprimirAberto(true)}
-        imprimirDesabilitado={elementos.length === 0}
-        modelosOficiais={modelosOficiais}
-        carregandoOficiais={carregandoOficiais}
-        onCarregarModeloOficial={carregarModeloOficial}
       />
 
       <div className="flex flex-1 flex-col lg:flex-row">
@@ -419,15 +555,6 @@ function Editor() {
             </TabsList>
             <TabsContent value="ferramentas" className="p-4">
               <Ferramentas onAdicionar={adicionar} onAdicionarImagem={adicionarImagem} />
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <Button variant="secondary" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-                  {salvar.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                  Salvar
-                </Button>
-                <Button onClick={() => setImprimirAberto(true)} disabled={elementos.length === 0}>
-                  <Printer className="h-4 w-4 mr-2" /> Imprimir
-                </Button>
-              </div>
             </TabsContent>
             <TabsContent value="propriedades" className="p-4">
               {painelPropriedades}
@@ -494,10 +621,9 @@ function TileElemento({
 
 // ============================================================================
 // Ribbon (barra de ferramentas horizontal, estilo Office) — substitui a
-// coluna lateral esquerda no desktop. Reúne, numa única linha com
-// justify-between: ferramentas de desenho à esquerda e ações principais
-// (Padrão / Salvar / Imprimir) à direita — sem duplicar chrome com o
-// cabeçalho da página, que agora é só o título.
+// coluna lateral esquerda no desktop. Resolve dois problemas de uma vez:
+// texto sendo cortado numa coluna estreita, e o canvas ficando menor do que
+// a tela por causa da coluna ocupar espaço permanente.
 // ============================================================================
 
 function RibbonBotao({
@@ -531,6 +657,9 @@ function RibbonSeparador() {
   return <div className="mx-1 my-1.5 w-px shrink-0 bg-border" />;
 }
 
+// Só largura/altura + o checkbox de "oficial" — nome do modelo e o preset
+// de tamanho agora vivem no botão próprio, ao lado de Logos (ver
+// RibbonNomeModelo), separado por assunto: aqui é só dimensão física.
 function RibbonEtiqueta(props: PropsEtiqueta) {
   const [aberto, setAberto] = useState(false);
   return (
@@ -544,8 +673,71 @@ function RibbonEtiqueta(props: PropsEtiqueta) {
           <span className="font-mono">{props.largura}×{props.altura}mm</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80">
-        <CamposEtiqueta {...props} />
+      <PopoverContent align="start" className="w-72">
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label>Largura (mm)</Label>
+              <Input type="number" min={5} max={300} value={props.largura} onChange={(e) => props.setLargura(Number(e.target.value) || 0)} className="font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Altura (mm)</Label>
+              <Input type="number" min={5} max={300} value={props.altura} onChange={(e) => props.setAltura(Number(e.target.value) || 0)} className="font-mono" />
+            </div>
+          </div>
+          {props.podeSerOficial && (
+            <label className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-sm cursor-pointer transition-colors hover:border-primary/60 hover:bg-primary/5">
+              <Checkbox checked={props.oficial} onCheckedChange={(v) => props.setOficial(!!v)} />
+              <span className="text-xs leading-relaxed text-muted-foreground">
+                Marcar como <span className="font-medium text-foreground">modelo oficial</span> (visível a todos os setores)
+              </span>
+            </label>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// Nome do modelo + preset de tamanho — separado da dimensão física de
+// propósito (pedido do usuário): fica mais claro visualmente distinguir
+// "como o modelo se chama" de "que tamanho ele tem".
+function RibbonNomeModelo(props: PropsEtiqueta) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="flex min-w-[100px] max-w-[140px] flex-col items-center justify-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          <Tag className="h-4 w-4 text-primary" />
+          <span className="max-w-full truncate">{props.nomeModelo.trim() || "Nome do modelo"}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72">
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Nome do modelo</Label>
+            <Input value={props.nomeModelo} onChange={(e) => props.setNomeModelo(e.target.value)} placeholder="Ex.: Identificação de leito" maxLength={100} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Tamanho pré-definido</Label>
+            <Select
+              onValueChange={(v) => {
+                const p = PRESETS_ZEBRA[parseInt(v, 10)];
+                if (p) { props.setLargura(p.largura); props.setAltura(p.altura); }
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Selecionar preset..." /></SelectTrigger>
+              <SelectContent>
+                {PRESETS_ZEBRA.map((p, i) => (
+                  <SelectItem key={i} value={String(i)}>{p.rotulo}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </PopoverContent>
     </Popover>
   );
@@ -583,74 +775,14 @@ function RibbonLogos({ onAdicionarImagem }: { onAdicionarImagem: (src: string, n
   );
 }
 
-// Botão "Padrão" (modelos oficiais) reaproveitado dentro do ribbon, ao lado
-// de Salvar e Imprimir — mesma altura e visual dos demais botões de ação.
-function RibbonPadrao({
-  modelosOficiais,
-  carregando,
-  onSelecionar,
-}: {
-  modelosOficiais: { id: string; nome: string; largura_mm: number; altura_mm: number; conteudo: unknown }[] | undefined;
-  carregando: boolean;
-  onSelecionar: (m: NonNullable<typeof modelosOficiais>[number]) => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" disabled={carregando}>
-          {carregando ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <FileText className="h-4 w-4 mr-2" />
-          )}
-          Padrão
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>Modelos oficiais</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {!modelosOficiais || modelosOficiais.length === 0 ? (
-          <div className="px-2 py-2 text-xs text-muted-foreground">
-            Nenhum modelo oficial cadastrado ainda.
-          </div>
-        ) : (
-          modelosOficiais.map((m) => (
-            <DropdownMenuItem key={m.id} onClick={() => onSelecionar(m)}>
-              <FileText className="h-4 w-4 mr-2 shrink-0" />
-              <span className="truncate">{m.nome}</span>
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                {Number(m.largura_mm)}×{Number(m.altura_mm)}mm
-              </span>
-            </DropdownMenuItem>
-          ))
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 function Ribbon({
   config,
   onAdicionar,
   onAdicionarImagem,
-  onSalvar,
-  salvando,
-  onImprimir,
-  imprimirDesabilitado,
-  modelosOficiais,
-  carregandoOficiais,
-  onCarregarModeloOficial,
 }: {
   config: PropsEtiqueta;
   onAdicionar: (t: Exclude<ElementoEtiqueta["tipo"], "imagem">) => void;
   onAdicionarImagem: (src: string, nomeArquivo: string) => void;
-  onSalvar: () => void;
-  salvando: boolean;
-  onImprimir: () => void;
-  imprimirDesabilitado: boolean;
-  modelosOficiais: { id: string; nome: string; largura_mm: number; altura_mm: number; conteudo: unknown }[] | undefined;
-  carregandoOficiais: boolean;
-  onCarregarModeloOficial: (m: NonNullable<typeof modelosOficiais>[number]) => void;
 }) {
   const inputImagemRef = useRef<HTMLInputElement>(null);
 
@@ -675,34 +807,19 @@ function Ribbon({
   }
 
   return (
-    <div className="hidden shrink-0 items-stretch justify-between gap-3 border-b bg-card px-3 py-1.5 lg:flex">
-      <div className="flex items-stretch overflow-x-auto">
-        <RibbonEtiqueta {...config} />
-        <RibbonSeparador />
-        <RibbonBotao icone={<Type className="h-4 w-4" />} label="Texto" onClick={() => onAdicionar("texto")} />
-        <RibbonBotao icone={<QrCode className="h-4 w-4" />} label="QR Code" onClick={() => onAdicionar("qrcode")} />
-        <RibbonBotao icone={<Square className="h-4 w-4" />} label="Retângulo" onClick={() => onAdicionar("retangulo")} />
-        <RibbonBotao icone={<Minus className="h-4 w-4" />} label="Linha" onClick={() => onAdicionar("linha")} />
-        <RibbonBotao icone={<ImageIcon className="h-4 w-4" />} label="Imagem" onClick={() => inputImagemRef.current?.click()} />
-        <input ref={inputImagemRef} type="file" accept="image/*" className="hidden" onChange={handleArquivoImagem} />
-        <RibbonSeparador />
-        <RibbonLogos onAdicionarImagem={onAdicionarImagem} />
-      </div>
-
-      <div className="flex shrink-0 items-center gap-2">
-        <RibbonPadrao
-          modelosOficiais={modelosOficiais}
-          carregando={carregandoOficiais}
-          onSelecionar={onCarregarModeloOficial}
-        />
-        <Button variant="secondary" size="sm" onClick={onSalvar} disabled={salvando}>
-          {salvando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Salvar
-        </Button>
-        <Button size="sm" onClick={onImprimir} disabled={imprimirDesabilitado}>
-          <Printer className="h-4 w-4 mr-2" /> Imprimir
-        </Button>
-      </div>
+    <div className="hidden shrink-0 items-stretch overflow-x-auto border-b bg-card px-3 py-1.5 lg:flex">
+      <RibbonEtiqueta {...config} />
+      <RibbonSeparador />
+      <RibbonBotao icone={<Type className="h-4 w-4" />} label="Texto" onClick={() => onAdicionar("texto")} />
+      <RibbonBotao icone={<QrCode className="h-4 w-4" />} label="QR Code" onClick={() => onAdicionar("qrcode")} />
+      <RibbonBotao icone={<Square className="h-4 w-4" />} label="Retângulo" onClick={() => onAdicionar("retangulo")} />
+      <RibbonBotao icone={<Minus className="h-4 w-4" />} label="Linha" onClick={() => onAdicionar("linha")} />
+      <RibbonBotao icone={<ImageIcon className="h-4 w-4" />} label="Imagem" onClick={() => inputImagemRef.current?.click()} />
+      <input ref={inputImagemRef} type="file" accept="image/*" className="hidden" onChange={handleArquivoImagem} />
+      <RibbonSeparador />
+      <RibbonLogos onAdicionarImagem={onAdicionarImagem} />
+      <RibbonSeparador />
+      <RibbonNomeModelo {...config} />
     </div>
   );
 }
@@ -827,8 +944,9 @@ type PropsEtiqueta = {
   podeSerOficial: boolean;
 };
 
-// Campos "crus", sem card ao redor — reaproveitados tanto dentro do popover
-// do ribbon (desktop) quanto na aba de configuração (mobile).
+// Campos "crus", sem card ao redor — reaproveitados na aba de configuração
+// do mobile (lá continua tudo junto, já que não tem o mesmo espaço de
+// ribbon pra separar em dois botões como no desktop).
 function CamposEtiqueta(props: PropsEtiqueta) {
   return (
     <div className="space-y-3">
@@ -1348,17 +1466,6 @@ function Canvas({
         }}
         onMouseDown={() => onSelecionar(null)}
       >
-        {/* Dica sutil dentro do canvas vazio — só aparece quando ainda não
-            há nenhum elemento desenhado, e some assim que o primeiro é
-            adicionado, sem ocupar espaço fixo no cabeçalho o tempo todo. */}
-        {elementos.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-2 text-center">
-            <span className="text-xs leading-relaxed text-muted-foreground/70">
-              Clique em <span className="font-medium text-muted-foreground">+ Texto</span> pra começar
-            </span>
-          </div>
-        )}
-
         {elementos.map((el) => (
           <ElementoRender
             key={el.id}
