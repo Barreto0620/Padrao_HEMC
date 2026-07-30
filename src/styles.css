@@ -1,0 +1,178 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system — Padrão HEMC
+ * Paleta oficial:
+ *   Azul-petróleo #0F4C5C  primária
+ *   Verde-água    #2A9D8F  sucesso/positivo
+ *   Âmbar         #E9A23B  alertas/destaque
+ *   Grafite       #1E2430  fundos escuros/base neutra
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Tema claro — mesma paleta oficial, aplicada sobre fundo claro */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.99 0.003 250);
+  --foreground: oklch(0.19 0.02 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.19 0.02 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.19 0.02 250);
+  /* Azul-petróleo #0F4C5C — cor primária, igual nos dois temas */
+  --primary: oklch(0.42 0.06 210);
+  --primary-foreground: oklch(0.98 0.005 250);
+  --secondary: oklch(0.95 0.008 250);
+  --secondary-foreground: oklch(0.19 0.02 250);
+  --muted: oklch(0.95 0.008 250);
+  --muted-foreground: oklch(0.48 0.02 250);
+  --accent: oklch(0.91 0.025 210);
+  --accent-foreground: oklch(0.24 0.05 210);
+  /* Verde-água #2A9D8F */
+  --success: oklch(0.55 0.11 175);
+  --success-foreground: oklch(0.98 0.005 250);
+  /* Âmbar #E9A23B */
+  --warning: oklch(0.72 0.14 75);
+  --warning-foreground: oklch(0.18 0.02 250);
+  --destructive: oklch(0.55 0.22 27);
+  --destructive-foreground: oklch(0.98 0.005 250);
+  --border: oklch(0.89 0.008 250);
+  --input: oklch(0.89 0.008 250);
+  --ring: oklch(0.55 0.08 210);
+  --sidebar: oklch(0.97 0.005 250);
+  --sidebar-foreground: oklch(0.19 0.02 250);
+  --sidebar-primary: oklch(0.42 0.06 210);
+  --sidebar-primary-foreground: oklch(0.98 0.005 250);
+  --sidebar-accent: oklch(0.92 0.01 250);
+  --sidebar-accent-foreground: oklch(0.19 0.02 250);
+  --sidebar-border: oklch(0.89 0.008 250);
+  --sidebar-ring: oklch(0.55 0.08 210);
+}
+
+/* Tema escuro institucional — o visual original do sistema, agora opcional */
+.dark {
+  /* Grafite base */
+  --background: oklch(0.19 0.02 250);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.23 0.02 250);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.23 0.02 250);
+  --popover-foreground: oklch(0.97 0.005 250);
+  /* Azul-petróleo #0F4C5C */
+  --primary: oklch(0.42 0.06 210);
+  --primary-foreground: oklch(0.98 0.005 250);
+  --secondary: oklch(0.28 0.02 250);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.28 0.02 250);
+  --muted-foreground: oklch(0.72 0.02 250);
+  --accent: oklch(0.35 0.05 210);
+  --accent-foreground: oklch(0.98 0.005 250);
+  /* Verde-água #2A9D8F */
+  --success: oklch(0.65 0.11 175);
+  --success-foreground: oklch(0.12 0.02 250);
+  /* Âmbar #E9A23B */
+  --warning: oklch(0.78 0.14 75);
+  --warning-foreground: oklch(0.15 0.02 250);
+  --destructive: oklch(0.58 0.22 27);
+  --destructive-foreground: oklch(0.98 0.005 250);
+  --border: oklch(0.32 0.02 250);
+  --input: oklch(0.28 0.02 250);
+  --ring: oklch(0.55 0.08 210);
+  --sidebar: oklch(0.16 0.02 250);
+  --sidebar-foreground: oklch(0.95 0.005 250);
+  --sidebar-primary: oklch(0.42 0.06 210);
+  --sidebar-primary-foreground: oklch(0.98 0.005 250);
+  --sidebar-accent: oklch(0.24 0.02 250);
+  --sidebar-accent-foreground: oklch(0.95 0.005 250);
+  --sidebar-border: oklch(0.28 0.02 250);
+  --sidebar-ring: oklch(0.55 0.08 210);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@utility hemc-gradient {
+  background: linear-gradient(135deg, oklch(0.42 0.06 210), oklch(0.35 0.08 195));
+}
+
+/* Barra de rolagem discreta e alinhada ao tema — usada nas listas internas
+   (Usuários, Setores etc.) que rolam dentro de um espaço de altura fixa,
+   em vez da barra genérica cinza padrão do navegador. Se adapta sozinha ao
+   tema claro/escuro porque usa as mesmas variáveis de cor do resto do app. */
+@utility scroll-elegante {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
+    border: 2px solid var(--color-card);
+    background-clip: padding-box;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-primary);
+  }
+}
