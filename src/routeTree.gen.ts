@@ -18,6 +18,7 @@ import { Route as AuthenticatedDocumentosRouteImport } from './routes/_authentic
 import { Route as AuthenticatedEditorRouteImport } from './routes/_authenticated/editor'
 import { Route as AuthenticatedAdminAuditoriaRouteImport } from './routes/_authenticated/admin/auditoria'
 import { Route as AuthenticatedAdminSetoresRouteImport } from './routes/_authenticated/admin/setores'
+import { Route as AuthenticatedAdminSolicitacoesRouteImport } from './routes/_authenticated/admin/solicitacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
 import { Route as AuthenticatedDocumentosEditorIndexRouteImport } from './routes/_authenticated/documentos/editor/index'
 
@@ -68,6 +69,12 @@ const AuthenticatedAdminSetoresRoute =
     path: '/admin/setores',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminSolicitacoesRoute =
+  AuthenticatedAdminSolicitacoesRouteImport.update({
+    id: '/admin/solicitacoes',
+    path: '/admin/solicitacoes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminUsuariosRoute =
   AuthenticatedAdminUsuariosRouteImport.update({
     id: '/admin/usuarios',
@@ -90,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/editor': typeof AuthenticatedEditorRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/setores': typeof AuthenticatedAdminSetoresRoute
+  '/admin/solicitacoes': typeof AuthenticatedAdminSolicitacoesRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/documentos/editor/': typeof AuthenticatedDocumentosEditorIndexRoute
 }
@@ -102,6 +110,7 @@ export interface FileRoutesByTo {
   '/editor': typeof AuthenticatedEditorRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/setores': typeof AuthenticatedAdminSetoresRoute
+  '/admin/solicitacoes': typeof AuthenticatedAdminSolicitacoesRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/documentos/editor': typeof AuthenticatedDocumentosEditorIndexRoute
 }
@@ -116,6 +125,7 @@ export interface FileRoutesById {
   '/_authenticated/editor': typeof AuthenticatedEditorRoute
   '/_authenticated/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/_authenticated/admin/setores': typeof AuthenticatedAdminSetoresRoute
+  '/_authenticated/admin/solicitacoes': typeof AuthenticatedAdminSolicitacoesRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
   '/_authenticated/documentos/editor/': typeof AuthenticatedDocumentosEditorIndexRoute
 }
@@ -130,6 +140,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/admin/auditoria'
     | '/admin/setores'
+    | '/admin/solicitacoes'
     | '/admin/usuarios'
     | '/documentos/editor/'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/editor'
     | '/admin/auditoria'
     | '/admin/setores'
+    | '/admin/solicitacoes'
     | '/admin/usuarios'
     | '/documentos/editor'
   id:
@@ -155,6 +167,7 @@ export interface FileRouteTypes {
     | '/_authenticated/editor'
     | '/_authenticated/admin/auditoria'
     | '/_authenticated/admin/setores'
+    | '/_authenticated/admin/solicitacoes'
     | '/_authenticated/admin/usuarios'
     | '/_authenticated/documentos/editor/'
   fileRoutesById: FileRoutesById
@@ -230,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminSetoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/solicitacoes': {
+      id: '/_authenticated/admin/solicitacoes'
+      path: '/admin/solicitacoes'
+      fullPath: '/admin/solicitacoes'
+      preLoaderRoute: typeof AuthenticatedAdminSolicitacoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/usuarios': {
       id: '/_authenticated/admin/usuarios'
       path: '/admin/usuarios'
@@ -269,6 +289,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEditorRoute: typeof AuthenticatedEditorRoute
   AuthenticatedAdminAuditoriaRoute: typeof AuthenticatedAdminAuditoriaRoute
   AuthenticatedAdminSetoresRoute: typeof AuthenticatedAdminSetoresRoute
+  AuthenticatedAdminSolicitacoesRoute: typeof AuthenticatedAdminSolicitacoesRoute
   AuthenticatedAdminUsuariosRoute: typeof AuthenticatedAdminUsuariosRoute
 }
 
@@ -279,6 +300,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEditorRoute: AuthenticatedEditorRoute,
   AuthenticatedAdminAuditoriaRoute: AuthenticatedAdminAuditoriaRoute,
   AuthenticatedAdminSetoresRoute: AuthenticatedAdminSetoresRoute,
+  AuthenticatedAdminSolicitacoesRoute: AuthenticatedAdminSolicitacoesRoute,
   AuthenticatedAdminUsuariosRoute: AuthenticatedAdminUsuariosRoute,
 }
 

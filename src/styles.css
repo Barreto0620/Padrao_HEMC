@@ -151,6 +151,13 @@
   background: linear-gradient(135deg, oklch(0.42 0.06 210), oklch(0.35 0.08 195));
 }
 
+/* Variante usada no modo "Cadastrar-se" da tela de login — mesma família de
+   cor, ângulo espelhado e mais puxado pro verde-água, pra dar a sensação de
+   mudança sem sair da identidade visual do sistema. */
+@utility hemc-gradient-cadastro {
+  background: linear-gradient(225deg, oklch(0.4 0.07 195), oklch(0.5 0.1 172));
+}
+
 /* Barra de rolagem discreta e alinhada ao tema — usada nas listas internas
    (Usuários, Setores etc.) que rolam dentro de um espaço de altura fixa,
    em vez da barra genérica cinza padrão do navegador. Se adapta sozinha ao

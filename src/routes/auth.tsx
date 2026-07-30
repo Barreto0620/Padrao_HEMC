@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -8,10 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { registrarAuditoria } from "@/lib/audit";
 import { existeAlgumUsuario, bootstrapAdmin } from "@/lib/bootstrap.functions";
 import { definirNovaSenhaPropria } from "@/lib/admin.functions";
-import { Loader2, ShieldPlus, Sun, Moon, KeyRound, User, Lock } from "lucide-react";
+import { solicitarCadastro, listarSetoresPublico, solicitarResetSenha } from "@/lib/solicitacoes.functions";
+import {
+  Loader2, ShieldPlus, Sun, Moon, KeyRound, User, Lock, Building2, CheckCircle2, ArrowRight,
+} from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 
 const LOGO_PADRAO_HEMC = "/logos/logo_padrao_hemc.png";
@@ -47,9 +52,11 @@ export const Route = createFileRoute("/auth")({
 
 function TelaLogin() {
   const navigate = useNavigate();
+  const [modo, setModo] = useState<"entrar" | "cadastrar">("entrar");
   const [re, setRe] = useState("");
   const [senha, setSenha] = useState("");
   const [carregando, setCarregando] = useState(false);
+  const [esqueciSenhaAberto, setEsqueciSenhaAberto] = useState(false);
 
   // Verifica, no cliente, se já existe uma sessão autenticada com troca de
   // senha pendente — cobre tanto o caso de "acabei de logar agora" quanto
@@ -133,105 +140,372 @@ function TelaLogin() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 relative">
-      <div className="absolute right-4 top-4 z-10">
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className="absolute right-4 top-4 z-20">
         <AlternadorTemaLogin />
       </div>
+
+      {/* Trilho deslizante com as duas "cenas" lado a lado — o container tem
+          o dobro da largura, e a gente translada ele em -50% pra trocar de
+          cena. Usa transform: translateX (não "order"/"flex-direction",
+          que "pulam" em vez de animar suave entre navegadores). */}
       <div
-        className="relative hidden lg:flex flex-col justify-between overflow-hidden p-12 hemc-gradient text-primary-foreground"
+        className="flex min-h-screen w-[200%] transition-transform duration-700 ease-in-out"
+        style={{ transform: modo === "entrar" ? "translateX(0%)" : "translateX(-50%)" }}
       >
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.15]"
-          style={{
-            backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
-            backgroundSize: "28px 28px",
-          }}
-        />
-        <div className="relative flex items-center gap-3">
-          <div className="grid h-14 w-14 place-items-center rounded-lg bg-white/10 backdrop-blur overflow-hidden">
-            <img
-              src={LOGO_PADRAO_HEMC}
-              alt="Logo Padrão HEMC"
-              className="h-full w-full object-contain scale-150"
-            />
-          </div>
-          <div>
-            <div className="text-xl font-semibold">Padrão HEMC</div>
+        {/* Cena 1 — Entrar (painel à esquerda, card à direita) */}
+        <div className="grid w-1/2 shrink-0 lg:grid-cols-2">
+          <PainelMarca
+            titulo={<>Padronização de processos<br />do Hospital Estadual Mário Covas</>}
+            descricao="Ambiente seguro para geração de etiquetas, rastreabilidade de emissões e gestão administrativa."
+            gradiente="hemc-gradient"
+          />
+          <div className="flex items-center justify-center p-6 sm:p-10">
+            <Card className="w-full max-w-md shadow-xl">
+              <CardHeader>
+                <MarcaMobile />
+                <CardTitle className="text-2xl">Entrar</CardTitle>
+                <CardDescription>Use seu RE (Registro do Empregado) e senha para acessar.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={entrar} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="re">RE</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="re"
+                        autoComplete="username"
+                        placeholder="Ex.: 123456"
+                        className="pl-9"
+                        value={re}
+                        onChange={(e) => setRe(e.target.value)}
+                        disabled={carregando}
+                        maxLength={30}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="senha">Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="senha"
+                        type="password"
+                        autoComplete="current-password"
+                        className="pl-9"
+                        value={senha}
+                        onChange={(e) => setSenha(e.target.value)}
+                        disabled={carregando}
+                        maxLength={72}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEsqueciSenhaAberto(true)}
+                      className="text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={carregando}>
+                    {carregando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Entrar
+                  </Button>
+                </form>
+
+                <button
+                  type="button"
+                  onClick={() => setModo("cadastrar")}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+                >
+                  Não tem acesso?
+                  <span className="inline-flex items-center gap-1 font-medium text-primary">
+                    Cadastre-se <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </button>
+
+                <PrimeiroAcesso />
+              </CardContent>
+            </Card>
           </div>
         </div>
-        <div className="relative">
-          <h1 className="text-4xl font-bold leading-tight">
-            Padronização de processos<br />do Hospital Estadual Mário Covas
-          </h1>
-          <p className="mt-4 max-w-md text-primary-foreground/80">
-            Ambiente seguro para geração de etiquetas, rastreabilidade de emissões e gestão administrativa.
-          </p>
+
+        {/* Cena 2 — Cadastrar-se (card à esquerda, painel à direita) */}
+        <div className="grid w-1/2 shrink-0 lg:grid-cols-2">
+          <div className="flex items-center justify-center p-6 sm:p-10 lg:order-1">
+            <Card className="w-full max-w-md shadow-xl">
+              <CardHeader>
+                <MarcaMobile />
+                <CardTitle className="text-2xl">Solicitar acesso</CardTitle>
+                <CardDescription>Preencha seus dados — a TI revisa e libera seu acesso.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <FormularioCadastro ativo={modo === "cadastrar"} aoVoltar={() => setModo("entrar")} />
+              </CardContent>
+            </Card>
+          </div>
+          <PainelMarca
+            className="lg:order-2"
+            titulo={<>Faça parte da<br />padronização do HEMC</>}
+            descricao="Seu cadastro é revisado pela TI antes de liberar o acesso — assim garantimos que só quem faz parte do hospital entra no sistema."
+            gradiente="hemc-gradient-cadastro"
+          />
         </div>
-        <div className="relative text-xs opacity-70">Santo André / SP</div>
       </div>
 
-      <div className="flex items-center justify-center p-6 sm:p-10 bg-background">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardHeader>
-            <div className="lg:hidden flex items-center gap-2 mb-2 text-primary">
-              <img
-                src={LOGO_PADRAO_HEMC}
-                alt="Logo Padrão HEMC"
-                className="h-7 w-7 object-contain scale-150"
-              />
-              <span className="font-semibold">Padrão HEMC</span>
+      <DialogoEsqueciSenha aberto={esqueciSenhaAberto} onFechar={() => setEsqueciSenhaAberto(false)} />
+    </div>
+  );
+}
+
+function DialogoEsqueciSenha({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+  const [re, setRe] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+
+  const enviarPedido = useServerFn(solicitarResetSenha);
+
+  async function submeter(e: React.FormEvent) {
+    e.preventDefault();
+    if (!re.trim()) {
+      toast.error("Informe seu RE.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      await enviarPedido({ data: { re: re.trim() } });
+      setEnviado(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar o pedido.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  function fechar() {
+    onFechar();
+    // Reseta depois de fechar, com um pequeno atraso pra não "piscar" o
+    // formulário vazio enquanto o diálogo ainda está com animação de saída.
+    setTimeout(() => {
+      setRe("");
+      setEnviando(false);
+      setEnviado(false);
+    }, 200);
+  }
+
+  return (
+    <Dialog open={aberto} onOpenChange={(o) => !o && fechar()}>
+      <DialogContent>
+        {enviado ? (
+          <div className="flex flex-col items-center gap-3 py-4 text-center">
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-7 w-7" />
             </div>
-            <CardTitle className="text-2xl">Entrar</CardTitle>
-            <CardDescription>Use seu RE (Registro do Empregado) e senha para acessar.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={entrar} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="re">RE</Label>
+            <div>
+              <p className="font-medium">Pedido enviado!</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                A TI vai revisar e te passar uma senha temporária assim que aprovado.
+              </p>
+            </div>
+            <Button variant="outline" className="mt-2" onClick={fechar}>Fechar</Button>
+          </div>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Esqueci minha senha</DialogTitle>
+              <DialogDescription>
+                Informe seu RE — a TI revisa o pedido e te passa uma senha temporária por um canal
+                seguro.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={submeter} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="esq-re">RE</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="re"
+                    id="esq-re"
                     autoFocus
-                    autoComplete="username"
-                    placeholder="Ex.: 123456"
                     className="pl-9"
+                    placeholder="Ex.: 123456"
                     value={re}
                     onChange={(e) => setRe(e.target.value)}
-                    disabled={carregando}
+                    disabled={enviando}
                     maxLength={30}
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="senha">Senha</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="senha"
-                    type="password"
-                    autoComplete="current-password"
-                    className="pl-9"
-                    value={senha}
-                    onChange={(e) => setSenha(e.target.value)}
-                    disabled={carregando}
-                    maxLength={72}
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={carregando}>
-                {carregando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Entrar
-              </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Não tem acesso? Solicite ao administrador do seu setor.
-              </p>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={fechar}>Cancelar</Button>
+                <Button type="submit" disabled={enviando}>
+                  {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Enviar pedido
+                </Button>
+              </DialogFooter>
             </form>
-            <PrimeiroAcesso />
-          </CardContent>
-        </Card>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PainelMarca({
+  titulo, descricao, gradiente, className,
+}: { titulo: ReactNode; descricao: string; gradiente: string; className?: string }) {
+  return (
+    <div className={`relative hidden flex-col justify-between overflow-hidden p-12 text-primary-foreground lg:flex ${gradiente} ${className ?? ""}`}>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.15]"
+        style={{
+          backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
+          backgroundSize: "28px 28px",
+        }}
+      />
+      <div className="relative flex items-center gap-3">
+        <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-lg bg-white/10 backdrop-blur">
+          <img src={LOGO_PADRAO_HEMC} alt="Logo Padrão HEMC" className="h-full w-full scale-150 object-contain" />
+        </div>
+        <div className="text-xl font-semibold">Padrão HEMC</div>
       </div>
+      <div className="relative">
+        <h1 className="text-4xl font-bold leading-tight">{titulo}</h1>
+        <p className="mt-4 max-w-md text-primary-foreground/80">{descricao}</p>
+      </div>
+      <div className="relative text-xs opacity-70">Santo André / SP</div>
     </div>
+  );
+}
+
+function MarcaMobile() {
+  return (
+    <div className="mb-2 flex items-center gap-2 text-primary lg:hidden">
+      <img src={LOGO_PADRAO_HEMC} alt="Logo Padrão HEMC" className="h-7 w-7 scale-150 object-contain" />
+      <span className="font-semibold">Padrão HEMC</span>
+    </div>
+  );
+}
+
+function FormularioCadastro({ ativo, aoVoltar }: { ativo: boolean; aoVoltar: () => void }) {
+  const [nome, setNome] = useState("");
+  const [re, setRe] = useState("");
+  const [setorId, setSetorId] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+
+  const buscarSetores = useServerFn(listarSetoresPublico);
+  const { data: setores } = useQuery({
+    queryKey: ["setores-publico"],
+    queryFn: () => buscarSetores(),
+    enabled: ativo, // só busca quando a cena de cadastro está visível
+    staleTime: 60_000,
+  });
+
+  const enviarSolicitacao = useServerFn(solicitarCadastro);
+
+  async function submeter(e: React.FormEvent) {
+    e.preventDefault();
+    if (!nome.trim() || !re.trim() || !setorId) {
+      toast.error("Preencha nome completo, RE e setor.");
+      return;
+    }
+    setEnviando(true);
+    try {
+      await enviarSolicitacao({ data: { nome_completo: nome.trim(), re: re.trim(), setor_id: setorId } });
+      setEnviado(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível enviar a solicitação.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (enviado) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-4 text-center">
+        <div className="grid h-14 w-14 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 className="h-7 w-7" />
+        </div>
+        <div>
+          <p className="font-medium">Solicitação enviada!</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A TI vai revisar seu pedido. Você recebe sua senha de acesso assim que for aprovado.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="mt-2"
+          onClick={() => {
+            setEnviado(false);
+            setNome("");
+            setRe("");
+            setSetorId("");
+            aoVoltar();
+          }}
+        >
+          Voltar para o login
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submeter} className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="cad-nome">Nome completo</Label>
+        <div className="relative">
+          <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="cad-nome"
+            className="pl-9"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            disabled={enviando}
+            maxLength={120}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="cad-re">RE</Label>
+        <div className="relative">
+          <KeyRound className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="cad-re"
+            placeholder="Ex.: 123456"
+            className="pl-9"
+            value={re}
+            onChange={(e) => setRe(e.target.value)}
+            disabled={enviando}
+            maxLength={30}
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="cad-setor">Setor</Label>
+        <Select value={setorId} onValueChange={setSetorId} disabled={enviando}>
+          <SelectTrigger id="cad-setor" className="relative pl-9">
+            <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <SelectValue placeholder="Selecionar setor..." />
+          </SelectTrigger>
+          <SelectContent>
+            {(setores ?? []).map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <Button type="submit" className="w-full" disabled={enviando}>
+        {enviando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        Solicitar acesso
+      </Button>
+      <button
+        type="button"
+        onClick={aoVoltar}
+        className="flex w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+      >
+        Já tem acesso? <span className="font-medium text-primary">Entrar</span>
+      </button>
+    </form>
   );
 }
 

@@ -17,7 +17,11 @@ export type AcaoAuditoria =
   | "template_editado"
   | "template_excluido"
   | "etiqueta_emitida"
-  | "auditoria_exportada";
+  | "auditoria_exportada"
+  | "lgpd_aceito"
+  | "solicitacao_criada"
+  | "solicitacao_aprovada"
+  | "solicitacao_rejeitada";
 
 export async function registrarAuditoria(params: {
   acao: AcaoAuditoria;

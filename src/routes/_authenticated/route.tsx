@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Tooltip,
   TooltipContent,
@@ -35,9 +36,14 @@ import {
   Sun,
   Moon,
   Cpu,
+  Inbox,
+  ShieldCheck,
 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { registrarAuditoria } from "@/lib/audit";
+import { registrarAceiteLGPD } from "@/lib/lgpd.functions";
 import { useTheme } from "@/hooks/use-theme";
 import { useEffect, useMemo, useState } from "react";
 
@@ -73,11 +79,12 @@ type ItemNav = {
 };
 
 const NAV: ItemNav[] = [
-  { to: "/editor", rotulo: "Editor de Etiquetas", icone: Tag },
-  { to: "/documentos/editor", rotulo: "Editor de Documentos", icone: FilePlus2 },
+  { to: "/editor", rotulo: "Novas Etiquetas", icone: Tag },
   { to: "/biblioteca", rotulo: "Biblioteca de Etiquetas", icone: Library },
+  { to: "/documentos/editor", rotulo: "Novos Documentos", icone: FilePlus2 },
   { to: "/documentos", rotulo: "Biblioteca de Documentos", icone: FileText },
-  { to: "/admin/usuarios", rotulo: "Administração de Usuários", icone: Users, soAdmin: true },
+  { to: "/admin/solicitacoes", rotulo: "Solicitações", icone: Inbox, soAdmin: true },
+  { to: "/admin/usuarios", rotulo: "Usuários", icone: Users, soAdmin: true },
   { to: "/admin/setores", rotulo: "Setores", icone: Building2, soAdmin: true },
   { to: "/admin/auditoria", rotulo: "Trilha de Auditoria", icone: ScrollText, soAdmin: true },
   { to: "/agente-impressao", rotulo: "Agente de Impressão", icone: Cpu, soAdmin: true },
@@ -108,6 +115,23 @@ function LayoutAutenticado() {
     }
   }, [sidebarColapsada]);
 
+  // Contagem de solicitações pendentes — só faz sentido buscar pra admin,
+  // que é quem vê o item de menu e o número ao lado dele.
+  const { data: contagemPendentes } = useQuery({
+    queryKey: ["solicitacoes-pendentes-contagem"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("solicitacoes")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pendente");
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: profile?.role === "admin",
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
   if (isLoading || !profile) {
     return (
       <div className="min-h-screen grid place-items-center">
@@ -117,6 +141,9 @@ function LayoutAutenticado() {
   }
 
   const itens = NAV.filter((i) => !i.soAdmin || profile.role === "admin");
+  const contadores: Record<string, number> = contagemPendentes
+    ? { "/admin/solicitacoes": contagemPendentes }
+    : {};
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -132,7 +159,7 @@ function LayoutAutenticado() {
             sidebarColapsada ? "w-16" : "w-64"
           }`}
         >
-          <NavItens itens={itens} colapsada={sidebarColapsada} />
+          <NavItens itens={itens} colapsada={sidebarColapsada} contadores={contadores} />
         </aside>
         <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
           <SheetContent side="left" className="p-0 w-72 bg-sidebar text-sidebar-foreground">
@@ -143,14 +170,71 @@ function LayoutAutenticado() {
                 <span className="font-semibold">Padrão HEMC</span>
               </div>
             </div>
-            <NavItens itens={itens} onClique={() => setMenuAberto(false)} />
+            <NavItens itens={itens} onClique={() => setMenuAberto(false)} contadores={contadores} />
           </SheetContent>
         </Sheet>
         <main className="flex-1 min-w-0">
           <Outlet />
         </main>
       </div>
+
+      <ModalAceiteLGPD lgpdAceiteEm={profile.lgpd_aceite_em} />
     </div>
+  );
+}
+
+function ModalAceiteLGPD({ lgpdAceiteEm }: { lgpdAceiteEm: string | null }) {
+  const qc = useQueryClient();
+  const [enviando, setEnviando] = useState(false);
+  const aceitar = useServerFn(registrarAceiteLGPD);
+
+  const precisaAceitar = lgpdAceiteEm === null;
+
+  async function confirmar() {
+    setEnviando(true);
+    try {
+      await aceitar({ data: undefined });
+      qc.invalidateQueries({ queryKey: ["profile-atual"] });
+    } catch {
+      toast.error("Não foi possível registrar o aceite. Tente novamente.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <Dialog open={precisaAceitar}>
+      <DialogContent
+        className="[&>button]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader>
+          <div className="flex items-center gap-2 text-primary">
+            <ShieldCheck className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-wider">Uso de dados (LGPD)</span>
+          </div>
+          <DialogTitle>Antes de continuar</DialogTitle>
+          <DialogDescription className="space-y-2 pt-2 text-left">
+            <span className="block">
+              O Padrão HEMC armazena dados como seu nome, RE e setor pra controlar o acesso e manter a
+              trilha de auditoria do sistema, em conformidade com a Lei Geral de Proteção de Dados
+              (LGPD).
+            </span>
+            <span className="block">
+              Esses dados não são compartilhados fora da instituição e ficam disponíveis apenas para
+              administradores do sistema.
+            </span>
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button onClick={confirmar} disabled={enviando} className="w-full sm:w-auto">
+            {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Li e estou de acordo
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -158,10 +242,12 @@ function NavItens({
   itens,
   onClique,
   colapsada,
+  contadores,
 }: {
   itens: ItemNav[];
   onClique?: () => void;
   colapsada?: boolean;
+  contadores?: Record<string, number>;
 }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
@@ -185,6 +271,7 @@ function NavItens({
         {itens.map((item) => {
           const Ic = item.icone;
           const ativo = item.to === itemAtivoTo;
+          const contador = contadores?.[item.to] ?? 0;
           const link = (
             <Link
               key={item.to}
@@ -198,8 +285,24 @@ function NavItens({
                   : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               }`}
             >
-              <Ic className="h-4 w-4 shrink-0" />
-              {!colapsada && <span className="truncate">{item.rotulo}</span>}
+              <span className="relative shrink-0">
+                <Ic className="h-4 w-4" />
+                {colapsada && contador > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 grid h-3.5 w-3.5 place-items-center rounded-full bg-warning text-[9px] font-bold text-warning-foreground">
+                    {contador > 9 ? "9+" : contador}
+                  </span>
+                )}
+              </span>
+              {!colapsada && (
+                <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                  <span className="truncate">{item.rotulo}</span>
+                  {contador > 0 && (
+                    <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-warning px-1 text-[10px] font-bold text-warning-foreground">
+                      {contador > 99 ? "99+" : contador}
+                    </span>
+                  )}
+                </span>
+              )}
             </Link>
           );
 
@@ -208,7 +311,10 @@ function NavItens({
           return (
             <Tooltip key={item.to}>
               <TooltipTrigger asChild>{link}</TooltipTrigger>
-              <TooltipContent side="right">{item.rotulo}</TooltipContent>
+              <TooltipContent side="right">
+                {item.rotulo}
+                {contador > 0 ? ` (${contador})` : ""}
+              </TooltipContent>
             </Tooltip>
           );
         })}
@@ -267,6 +373,9 @@ function Cabecalho({
               <Hospital className="h-4 w-4" />
             </div>
             <div className="min-w-0 hidden sm:block">
+              <div className="text-xs uppercase tracking-widest text-muted-foreground leading-none">
+                HEMC
+              </div>
               <div className="text-sm font-semibold leading-tight truncate">Padrão HEMC</div>
             </div>
           </Link>

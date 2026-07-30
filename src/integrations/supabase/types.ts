@@ -58,6 +58,7 @@ export type Database = {
           created_at: string
           deve_trocar_senha: boolean
           id: string
+          lgpd_aceite_em: string | null
           nome_completo: string
           re: string
           role: Database["public"]["Enums"]["app_role"]
@@ -69,6 +70,7 @@ export type Database = {
           created_at?: string
           deve_trocar_senha?: boolean
           id: string
+          lgpd_aceite_em?: string | null
           nome_completo: string
           re: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -80,6 +82,7 @@ export type Database = {
           created_at?: string
           deve_trocar_senha?: boolean
           id?: string
+          lgpd_aceite_em?: string | null
           nome_completo?: string
           re?: string
           role?: Database["public"]["Enums"]["app_role"]
@@ -122,6 +125,67 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      solicitacoes: {
+        Row: {
+          created_at: string
+          id: string
+          nome_completo: string | null
+          re: string
+          revisado_em: string | null
+          revisado_por: string | null
+          setor_id: string | null
+          status: Database["public"]["Enums"]["status_solicitacao"]
+          tipo: Database["public"]["Enums"]["tipo_solicitacao"]
+          usuario_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome_completo?: string | null
+          re: string
+          revisado_em?: string | null
+          revisado_por?: string | null
+          setor_id?: string | null
+          status?: Database["public"]["Enums"]["status_solicitacao"]
+          tipo: Database["public"]["Enums"]["tipo_solicitacao"]
+          usuario_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome_completo?: string | null
+          re?: string
+          revisado_em?: string | null
+          revisado_por?: string | null
+          setor_id?: string | null
+          status?: Database["public"]["Enums"]["status_solicitacao"]
+          tipo?: Database["public"]["Enums"]["tipo_solicitacao"]
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitacoes_setor_id_fkey"
+            columns: ["setor_id"]
+            isOneToOne: false
+            referencedRelation: "setores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitacoes_revisado_por_fkey"
+            columns: ["revisado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       templates_etiqueta: {
         Row: {
@@ -199,6 +263,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "colaborador"
+      status_solicitacao: "pendente" | "aprovada" | "rejeitada"
+      tipo_solicitacao: "cadastro" | "reset_senha"
     }
     CompositeTypes: {
       [_ in never]: never

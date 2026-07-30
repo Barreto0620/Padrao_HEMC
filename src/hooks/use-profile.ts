@@ -8,6 +8,7 @@ export type PerfilUsuario = {
   setor_id: string | null;
   role: "admin" | "colaborador";
   ativo: boolean;
+  lgpd_aceite_em: string | null;
   setor: { id: string; nome: string; sigla: string } | null;
 };
 
@@ -21,7 +22,7 @@ export function useProfile() {
       if (!user) return null;
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, nome_completo, re, setor_id, role, ativo, setor:setores(id, nome, sigla)")
+        .select("id, nome_completo, re, setor_id, role, ativo, lgpd_aceite_em, setor:setores(id, nome, sigla)")
         .eq("id", user.id)
         .maybeSingle();
       if (error) throw error;

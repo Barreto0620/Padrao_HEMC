@@ -49,6 +49,10 @@ const ROTULO_ACAO: Record<string, string> = {
   template_excluido: "Modelo excluído",
   etiqueta_emitida: "Etiqueta emitida",
   auditoria_exportada: "Trilha exportada (CSV)",
+  lgpd_aceito: "Aceite de termos (LGPD)",
+  solicitacao_criada: "Solicitação criada",
+  solicitacao_aprovada: "Solicitação aprovada",
+  solicitacao_rejeitada: "Solicitação rejeitada",
 };
 
 // Traduz as chaves técnicas do campo "detalhes" (jsonb) pra rótulos
