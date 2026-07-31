@@ -235,7 +235,6 @@ function TelaLogin() {
               <CardHeader className="items-center text-center">
                 <MarcaMobile />
                 <CardTitle className="text-2xl">Solicitar acesso</CardTitle>
-                <CardDescription>Preencha seus dados — a TI revisa e libera seu acesso.</CardDescription>
               </CardHeader>
               <CardContent>
                 <FormularioCadastro ativo={modo === "cadastrar"} aoVoltar={() => setModo("entrar")} />
