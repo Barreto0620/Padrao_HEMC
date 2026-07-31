@@ -15,7 +15,7 @@ import { existeAlgumUsuario, bootstrapAdmin } from "@/lib/bootstrap.functions";
 import { definirNovaSenhaPropria } from "@/lib/admin.functions";
 import { solicitarCadastro, listarSetoresPublico, solicitarResetSenha } from "@/lib/solicitacoes.functions";
 import {
-  Loader2, ShieldPlus, Sun, Moon, KeyRound, User, Lock, Building2, CheckCircle2, ArrowRight,
+  Loader2, ShieldPlus, Sun, Moon, KeyRound, User, Lock, Building2, CheckCircle2,
 } from "lucide-react";
 import { useTheme } from "@/hooks/use-theme";
 
@@ -156,13 +156,13 @@ function TelaLogin() {
         {/* Cena 1 — Entrar (painel à esquerda, card à direita) */}
         <div className="grid w-1/2 shrink-0 lg:grid-cols-2">
           <PainelMarca
-            titulo={<>Padronização de processos<br />do Hospital Estadual Mário Covas</>}
-            descricao="Ambiente seguro para geração de etiquetas, rastreabilidade de emissões e gestão administrativa."
+            titulo={<>Padronização de processos<br />do Hospital Estadual Mário Covas<br /><br /></>}
+            descricao="Sistema seguro para padronização de etiquetas e documentos institucionais, assegurando rastreabilidade, controle de emissões e conformidade dos processos administrativos."
             gradiente="hemc-gradient"
           />
           <div className="flex items-center justify-center p-6 sm:p-10">
             <Card className="w-full max-w-md shadow-xl">
-              <CardHeader>
+              <CardHeader className="items-center text-center">
                 <MarcaMobile />
                 <CardTitle className="text-2xl">Entrar</CardTitle>
                 <CardDescription>Use seu RE (Registro do Empregado) e senha para acessar.</CardDescription>
@@ -217,12 +217,9 @@ function TelaLogin() {
                 <button
                   type="button"
                   onClick={() => setModo("cadastrar")}
-                  className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+                  className="mt-4 w-full text-center text-sm font-medium text-primary transition-colors hover:underline"
                 >
                   Não tem acesso?
-                  <span className="inline-flex items-center gap-1 font-medium text-primary">
-                    Cadastre-se <ArrowRight className="h-3.5 w-3.5" />
-                  </span>
                 </button>
 
                 <PrimeiroAcesso />
@@ -235,7 +232,7 @@ function TelaLogin() {
         <div className="grid w-1/2 shrink-0 lg:grid-cols-2">
           <div className="flex items-center justify-center p-6 sm:p-10 lg:order-1">
             <Card className="w-full max-w-md shadow-xl">
-              <CardHeader>
+              <CardHeader className="items-center text-center">
                 <MarcaMobile />
                 <CardTitle className="text-2xl">Solicitar acesso</CardTitle>
                 <CardDescription>Preencha seus dados — a TI revisa e libera seu acesso.</CardDescription>
@@ -247,8 +244,8 @@ function TelaLogin() {
           </div>
           <PainelMarca
             className="lg:order-2"
-            titulo={<>Faça parte da<br />padronização do HEMC</>}
-            descricao="Seu cadastro é revisado pela TI antes de liberar o acesso — assim garantimos que só quem faz parte do hospital entra no sistema."
+            titulo={<>Padronização Inteligente<br /><br /></>}
+            descricao="Para garantir a segurança das informações, todos os cadastros são analisados e aprovados pela equipe de TI antes da liberação do acesso ao sistema."
             gradiente="hemc-gradient-cadastro"
           />
         </div>
@@ -350,18 +347,44 @@ function DialogoEsqueciSenha({ aberto, onFechar }: { aberto: boolean; onFechar: 
   );
 }
 
+// Painel de marca dos dois lados da tela de login. Em vez de reagir ao
+// cursor (que dava aquela sensação de "bola de luz" seguindo o mouse), o
+// painel agora se move sozinho: três camadas de ondas sobrepostas, cada
+// uma numa velocidade e sentido diferentes, criando uma superfície de
+// água contínua e orgânica ao fundo — sem depender de nenhuma interação.
 function PainelMarca({
   titulo, descricao, gradiente, className,
 }: { titulo: ReactNode; descricao: string; gradiente: string; className?: string }) {
   return (
-    <div className={`relative hidden flex-col justify-between overflow-hidden p-12 text-primary-foreground lg:flex ${gradiente} ${className ?? ""}`}>
+    <div
+      className={`relative hidden flex-col justify-between overflow-hidden p-12 text-primary-foreground lg:flex ${gradiente} ${className ?? ""}`}
+    >
+      {/* Textura de pontos sutil, só pra dar granularidade ao fundo */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.15]"
+        className="pointer-events-none absolute inset-0 opacity-[0.12]"
         style={{
           backgroundImage: "radial-gradient(circle, currentColor 1px, transparent 1px)",
           backgroundSize: "28px 28px",
         }}
       />
+
+      {/* Ondas de água ao vento — três camadas, cada uma fluindo em sua
+          própria velocidade/sentido, dando profundidade ao movimento. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-64 overflow-hidden">
+        <div className="hemc-onda-track hemc-onda-camada-1 absolute inset-0">
+          <OndaSvg opacidade={0.1} variante={1} />
+          <OndaSvg opacidade={0.1} variante={1} />
+        </div>
+        <div className="hemc-onda-track hemc-onda-camada-2 absolute inset-0">
+          <OndaSvg opacidade={0.14} variante={2} />
+          <OndaSvg opacidade={0.14} variante={2} />
+        </div>
+        <div className="hemc-onda-track hemc-onda-camada-3 absolute inset-0">
+          <OndaSvg opacidade={0.2} variante={3} />
+          <OndaSvg opacidade={0.2} variante={3} />
+        </div>
+      </div>
+
       <div className="relative flex items-center gap-3">
         <div className="grid h-14 w-14 place-items-center overflow-hidden rounded-lg bg-white/10 backdrop-blur">
           <img src={LOGO_PADRAO_HEMC} alt="Logo Padrão HEMC" className="h-full w-full scale-150 object-contain" />
@@ -372,8 +395,26 @@ function PainelMarca({
         <h1 className="text-4xl font-bold leading-tight">{titulo}</h1>
         <p className="mt-4 max-w-md text-primary-foreground/80">{descricao}</p>
       </div>
-      <div className="relative text-xs opacity-70">Santo André / SP</div>
+      <div className="relative text-xs opacity-70"> Rua Dr. Henrique Calderazzo, 321 • Santo André/SP • CEP 09190-615</div>
     </div>
+  );
+}
+
+// Um único "trecho" de onda, em formato SVG. Cada trilho (hemc-onda-track)
+// renderiza duas cópias lado a lado e desliza -50% infinitamente — como o
+// início/fim de cada trecho ficam na mesma altura, a transição é invisível
+// e o efeito parece uma superfície de água contínua, nunca se repetindo
+// de forma óbvia.
+function OndaSvg({ opacidade, variante }: { opacidade: number; variante: 1 | 2 | 3 }) {
+  const caminhos: Record<1 | 2 | 3, string> = {
+    1: "M0,110 C100,150 200,70 300,110 C400,150 500,70 600,110 L600,200 L0,200 Z",
+    2: "M0,120 C110,70 210,160 320,110 C430,60 530,150 600,120 L600,200 L0,200 Z",
+    3: "M0,140 C120,180 220,90 340,130 C460,170 540,90 600,140 L600,200 L0,200 Z",
+  };
+  return (
+    <svg viewBox="0 0 600 200" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d={caminhos[variante]} fill="currentColor" opacity={opacidade} />
+    </svg>
   );
 }
 
@@ -501,9 +542,9 @@ function FormularioCadastro({ ativo, aoVoltar }: { ativo: boolean; aoVoltar: () 
       <button
         type="button"
         onClick={aoVoltar}
-        className="flex w-full items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary"
+        className="w-full text-center text-sm font-medium text-primary transition-colors hover:underline"
       >
-        Já tem acesso? <span className="font-medium text-primary">Entrar</span>
+        Já tem acesso?
       </button>
     </form>
   );
@@ -653,26 +694,22 @@ function PrimeiroAcesso() {
 
   if (!aberto) {
     return (
-      <div className="mt-4 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
-        <div className="flex items-start gap-2">
-          <ShieldPlus className="h-4 w-4 mt-0.5 text-warning shrink-0" />
-          <div className="min-w-0">
-            <div className="font-medium">Primeiro acesso ao sistema</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Nenhum usuário cadastrado. Crie o administrador inicial para começar.
-            </p>
-            <Button size="sm" variant="secondary" className="mt-2" onClick={() => setAberto(true)}>
-              Configurar administrador
-            </Button>
-          </div>
-        </div>
+      <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 p-4 text-center text-sm">
+        <ShieldPlus className="h-5 w-5 text-warning" />
+        <div className="font-medium">Primeiro acesso ao sistema</div>
+        <p className="text-xs text-muted-foreground">
+          Nenhum usuário cadastrado. Crie o administrador inicial para começar.
+        </p>
+        <Button size="sm" variant="secondary" className="mt-1" onClick={() => setAberto(true)}>
+          Configurar administrador
+        </Button>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submeter} className="mt-4 space-y-3 rounded-md border p-3">
-      <div className="text-sm font-medium flex items-center gap-2">
+    <form onSubmit={submeter} className="mt-4 space-y-3 rounded-xl border p-4">
+      <div className="flex items-center justify-center gap-2 text-sm font-medium">
         <ShieldPlus className="h-4 w-4 text-warning" /> Configurar administrador inicial
       </div>
       <div className="space-y-1.5"><Label className="text-xs">Nome completo</Label>
@@ -683,7 +720,7 @@ function PrimeiroAcesso() {
         <div className="space-y-1.5"><Label className="text-xs">Senha</Label>
           <Input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} maxLength={72} /></div>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-center gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={() => setAberto(false)}>Cancelar</Button>
         <Button type="submit" size="sm" disabled={enviando}>
           {enviando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />} Criar

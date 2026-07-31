@@ -147,8 +147,17 @@
   }
 }
 
+/* Animação suave de "respiração" do gradiente — usada nos painéis de marca
+   da tela de login, pra dar sensação de vivo mesmo sem interação nenhuma. */
+@keyframes hemc-gradiente-fluido {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
 @utility hemc-gradient {
   background: linear-gradient(135deg, oklch(0.42 0.06 210), oklch(0.35 0.08 195));
+  background-size: 200% 200%;
+  animation: hemc-gradiente-fluido 10s ease-in-out infinite;
 }
 
 /* Variante usada no modo "Cadastrar-se" da tela de login — mesma família de
@@ -156,6 +165,46 @@
    mudança sem sair da identidade visual do sistema. */
 @utility hemc-gradient-cadastro {
   background: linear-gradient(225deg, oklch(0.4 0.07 195), oklch(0.5 0.1 172));
+  background-size: 200% 200%;
+  animation: hemc-gradiente-fluido 10s ease-in-out infinite;
+}
+
+/* Ondas de água animadas nos painéis de marca da tela de login. Em vez de
+   reagir ao cursor, cada camada flui sozinha em sua própria velocidade e
+   sentido — dá a sensação de uma superfície de água contínua ao vento, sem
+   depender de nenhuma interação do usuário.
+   Cada "trilho" (.hemc-onda-track) renderiza duas cópias do mesmo trecho
+   de onda lado a lado, com largura total de 200%, e desliza -50% de forma
+   infinita e linear; como início e fim de cada trecho ficam na mesma
+   altura, a costura entre as cópias fica invisível. */
+@keyframes hemc-onda-fluir {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.hemc-onda-track {
+  display: flex;
+  width: 200%;
+  height: 100%;
+  will-change: transform;
+}
+
+.hemc-onda-track svg {
+  width: 50%;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.hemc-onda-camada-1 {
+  animation: hemc-onda-fluir 22s linear infinite;
+}
+
+.hemc-onda-camada-2 {
+  animation: hemc-onda-fluir 30s linear infinite reverse;
+}
+
+.hemc-onda-camada-3 {
+  animation: hemc-onda-fluir 40s linear infinite;
 }
 
 /* Barra de rolagem discreta e alinhada ao tema — usada nas listas internas
