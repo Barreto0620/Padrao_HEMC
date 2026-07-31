@@ -386,7 +386,7 @@ function RodapeCreditos() {
         rel="noopener noreferrer"
         className="pointer-events-auto text-[11px] text-muted-foreground/25 transition-colors duration-300 hover:text-primary"
       >
-        Gabriel Barreto
+        Desenvolvido por Gabriel Barreto | Copyright © 2026
       </a>
     </div>
   );
