@@ -21,7 +21,11 @@ export type AcaoAuditoria =
   | "lgpd_aceito"
   | "solicitacao_criada"
   | "solicitacao_aprovada"
-  | "solicitacao_rejeitada";
+  | "solicitacao_rejeitada"
+  | "documento_criado"
+  | "documento_editado"
+  | "documento_excluido"
+  | "documento_exportado_odt";
 
 export async function registrarAuditoria(params: {
   acao: AcaoAuditoria;

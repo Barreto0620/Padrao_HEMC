@@ -20,6 +20,7 @@ import { Route as AuthenticatedAdminAuditoriaRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminSetoresRouteImport } from './routes/_authenticated/admin/setores'
 import { Route as AuthenticatedAdminSolicitacoesRouteImport } from './routes/_authenticated/admin/solicitacoes'
 import { Route as AuthenticatedAdminUsuariosRouteImport } from './routes/_authenticated/admin/usuarios'
+import { Route as AuthenticatedDocumentosIndexRouteImport } from './routes/_authenticated/documentos/index'
 import { Route as AuthenticatedDocumentosEditorIndexRouteImport } from './routes/_authenticated/documentos/editor/index'
 
 const IndexRoute = IndexRouteImport.update({
@@ -81,6 +82,12 @@ const AuthenticatedAdminUsuariosRoute =
     path: '/admin/usuarios',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDocumentosIndexRoute =
+  AuthenticatedDocumentosIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedDocumentosRoute,
+  } as any)
 const AuthenticatedDocumentosEditorIndexRoute =
   AuthenticatedDocumentosEditorIndexRouteImport.update({
     id: '/editor/',
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/admin/setores': typeof AuthenticatedAdminSetoresRoute
   '/admin/solicitacoes': typeof AuthenticatedAdminSolicitacoesRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/documentos/': typeof AuthenticatedDocumentosIndexRoute
   '/documentos/editor/': typeof AuthenticatedDocumentosEditorIndexRoute
 }
 export interface FileRoutesByTo {
@@ -106,12 +114,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/agente-impressao': typeof AuthenticatedAgenteImpressaoRoute
   '/biblioteca': typeof AuthenticatedBibliotecaRoute
-  '/documentos': typeof AuthenticatedDocumentosRouteWithChildren
   '/editor': typeof AuthenticatedEditorRoute
   '/admin/auditoria': typeof AuthenticatedAdminAuditoriaRoute
   '/admin/setores': typeof AuthenticatedAdminSetoresRoute
   '/admin/solicitacoes': typeof AuthenticatedAdminSolicitacoesRoute
   '/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/documentos': typeof AuthenticatedDocumentosIndexRoute
   '/documentos/editor': typeof AuthenticatedDocumentosEditorIndexRoute
 }
 export interface FileRoutesById {
@@ -127,6 +135,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/setores': typeof AuthenticatedAdminSetoresRoute
   '/_authenticated/admin/solicitacoes': typeof AuthenticatedAdminSolicitacoesRoute
   '/_authenticated/admin/usuarios': typeof AuthenticatedAdminUsuariosRoute
+  '/_authenticated/documentos/': typeof AuthenticatedDocumentosIndexRoute
   '/_authenticated/documentos/editor/': typeof AuthenticatedDocumentosEditorIndexRoute
 }
 export interface FileRouteTypes {
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/admin/setores'
     | '/admin/solicitacoes'
     | '/admin/usuarios'
+    | '/documentos/'
     | '/documentos/editor/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -149,12 +159,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/agente-impressao'
     | '/biblioteca'
-    | '/documentos'
     | '/editor'
     | '/admin/auditoria'
     | '/admin/setores'
     | '/admin/solicitacoes'
     | '/admin/usuarios'
+    | '/documentos'
     | '/documentos/editor'
   id:
     | '__root__'
@@ -169,6 +179,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/setores'
     | '/_authenticated/admin/solicitacoes'
     | '/_authenticated/admin/usuarios'
+    | '/_authenticated/documentos/'
     | '/_authenticated/documentos/editor/'
   fileRoutesById: FileRoutesById
 }
@@ -257,6 +268,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminUsuariosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/documentos/': {
+      id: '/_authenticated/documentos/'
+      path: '/'
+      fullPath: '/documentos/'
+      preLoaderRoute: typeof AuthenticatedDocumentosIndexRouteImport
+      parentRoute: typeof AuthenticatedDocumentosRoute
+    }
     '/_authenticated/documentos/editor/': {
       id: '/_authenticated/documentos/editor/'
       path: '/editor'
@@ -268,11 +286,13 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedDocumentosRouteChildren {
+  AuthenticatedDocumentosIndexRoute: typeof AuthenticatedDocumentosIndexRoute
   AuthenticatedDocumentosEditorIndexRoute: typeof AuthenticatedDocumentosEditorIndexRoute
 }
 
 const AuthenticatedDocumentosRouteChildren: AuthenticatedDocumentosRouteChildren =
   {
+    AuthenticatedDocumentosIndexRoute: AuthenticatedDocumentosIndexRoute,
     AuthenticatedDocumentosEditorIndexRoute:
       AuthenticatedDocumentosEditorIndexRoute,
   }

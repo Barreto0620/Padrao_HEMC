@@ -1,31 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { FileText, Hammer } from "lucide-react";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
+// Este arquivo é o layout PAI de tudo que fica sob /documentos/* (inclusive
+// /documentos/editor). Ele só precisa passar a rota filha adiante — o
+// conteúdo real de "Biblioteca de Documentos" (quando alguém está
+// exatamente em /documentos, sem nada depois) mora em documentos/index.tsx.
+// Sem o <Outlet /> aqui, o placeholder deste arquivo aparecia por cima de
+// QUALQUER rota filha, inclusive o editor — foi exatamente esse bug que
+// impedia o /documentos/editor de renderizar.
 export const Route = createFileRoute("/_authenticated/documentos")({
-  head: () => ({
-    meta: [
-      { title: "Documentos — Padrão HEMC" },
-      { name: "description", content: "Módulo de documentos institucionais do Padrão HEMC." },
-    ],
-  }),
-  component: PaginaDocumentos,
+  component: () => <Outlet />,
 });
-
-function PaginaDocumentos() {
-  return (
-    <div className="p-6 md:p-10 min-h-full grid place-items-center">
-      <div className="max-w-lg text-center">
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-muted mb-6">
-          <FileText className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h1 className="text-2xl font-semibold flex items-center justify-center gap-2">
-          Documentos institucionais
-          <Hammer className="h-5 w-5 text-warning" />
-        </h1>
-        <p className="mt-3 text-muted-foreground">
-          Módulo em desenvolvimento. Em breve você poderá criar e padronizar documentos institucionais aqui.
-        </p>
-      </div>
-    </div>
-  );
-}
